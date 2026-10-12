@@ -2,19 +2,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import { useCart } from "../../lib/cart-context";
+import { useEffect, useState, type FormEvent } from "react";
+import { useCart, type CartItem } from "../../lib/cart-context";
 
 type PaymentMethod = "upi" | "card" | "cod";
 
+const DIRECT_CHECKOUT_KEY = "elane-direct-checkout";
+
 export default function CheckoutPage() {
   const {
-    items,
-    subtotal,
-    itemCount,
-    isLoaded,
+    items: cartItems,
+    itemCount: cartItemCount,
+    subtotal: cartSubtotal,
+    isLoaded: cartLoaded,
     clearCart,
   } = useCart();
+
+  const [isDirectCheckout, setIsDirectCheckout] = useState(false);
+  const [directItems, setDirectItems] = useState<CartItem[]>([]);
+  const [modeLoaded, setModeLoaded] = useState(false);
 
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>("upi");
@@ -28,6 +34,44 @@ export default function CheckoutPage() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    const directMode =
+      new URLSearchParams(window.location.search).get("mode") === "direct";
+
+    setIsDirectCheckout(directMode);
+
+    if (directMode) {
+      try {
+        const saved = localStorage.getItem(DIRECT_CHECKOUT_KEY);
+
+        if (saved) {
+          const parsed: unknown = JSON.parse(saved);
+
+          if (Array.isArray(parsed)) {
+            setDirectItems(parsed as CartItem[]);
+          }
+        }
+      } catch (error) {
+        console.error("Could not load direct checkout:", error);
+        setDirectItems([]);
+      }
+    }
+
+    setModeLoaded(true);
+  }, []);
+
+  const items = isDirectCheckout ? directItems : cartItems;
+
+  const itemCount = items.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+
+  const subtotal = items.reduce(
+    (total, item) => total + item.perfume.price * item.quantity,
+    0
+  );
+
   const shipping = subtotal >= 2999 || subtotal === 0 ? 0 : 99;
   const total = subtotal + shipping;
 
@@ -37,13 +81,13 @@ export default function CheckoutPage() {
 
     if (isSubmitting) return;
 
-    if (!isLoaded) {
-      setMessage("Please wait while your shopping bag loads.");
+    if (!modeLoaded || (!isDirectCheckout && !cartLoaded)) {
+      setMessage("Please wait while your order loads.");
       return;
     }
 
     if (items.length === 0) {
-      setMessage("Your shopping bag is empty. Please add a perfume first.");
+      setMessage("Your checkout is empty. Please select a perfume first.");
       return;
     }
 
@@ -89,13 +133,23 @@ export default function CheckoutPage() {
 
     try {
       localStorage.setItem("elane-last-order", JSON.stringify(order));
-      clearCart();
+
+      if (isDirectCheckout) {
+        // Preserve the customer's regular shopping bag.
+        localStorage.removeItem(DIRECT_CHECKOUT_KEY);
+      } else {
+        // Normal bag checkout empties the shopping bag.
+        clearCart();
+        localStorage.removeItem(DIRECT_CHECKOUT_KEY);
+      }
+
       setIsSubmitting(true);
 
       window.location.href =
         "/order-confirmation?order=" +
         encodeURIComponent(orderNumber);
-    } catch {
+    } catch (error) {
+      console.error("Could not save demo order:", error);
       setIsSubmitting(false);
       setMessage("We could not save your demo order. Please try again.");
     }
@@ -104,10 +158,10 @@ export default function CheckoutPage() {
   const inputClass =
     "mt-2 min-h-12 w-full min-w-0 border border-[#ded7ce] bg-[#faf8f4] px-3 py-3 text-base text-[#25231f] outline-none focus:border-[#a18454] sm:px-4 sm:text-sm";
 
-  if (!isLoaded) {
+  if (!modeLoaded || (!isDirectCheckout && !cartLoaded)) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center bg-[#faf8f4] px-4 text-center text-[#25231f]">
-        Loading your shopping bag...
+        Loading your checkout...
       </main>
     );
   }
@@ -115,23 +169,23 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[#faf8f4] px-5 py-12 text-center text-[#25231f]">
-        <p className="text-xs tracking-[0.25em] text-[#a18454]">
-          ÉLANÉ
-        </p>
+        <p className="text-xs tracking-[0.25em] text-[#a18454]">ÉLANÉ</p>
 
         <h1 className="mt-5 font-serif text-3xl sm:text-4xl">
-          Your bag is waiting.
+          Your checkout is waiting.
         </h1>
 
         <p className="mt-4 max-w-sm text-sm leading-6 text-[#777168]">
-          Add a fragrance to your bag before checking out.
+          {isDirectCheckout
+            ? "Please return to a product page and choose Buy Now again."
+            : "Add a fragrance to your bag before checking out."}
         </p>
 
         <Link
-          href="/shop"
+          href={isDirectCheckout ? "/shop" : "/cart"}
           className="mt-8 inline-flex min-h-12 items-center justify-center bg-[#292720] px-6 py-3 text-center text-xs tracking-[0.15em] text-white transition hover:bg-[#a18454] sm:px-7"
         >
-          EXPLORE PERFUMES
+          {isDirectCheckout ? "EXPLORE PERFUMES" : "RETURN TO BAG"}
         </Link>
       </main>
     );
@@ -139,27 +193,25 @@ export default function CheckoutPage() {
 
   return (
     <main className="min-h-screen overflow-x-clip bg-[#faf8f4] text-[#25231f]">
-      {/* Checkout header */}
       <header className="border-b border-[#e9e3d9]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-8 sm:py-5">
           <Link
             href="/"
             className="shrink-0 font-serif text-xl tracking-[0.12em] sm:text-2xl sm:tracking-[0.15em]"
           >
-            ÉLANÉ<span className="text-[#b39158]">.</span>
+            ÉLANÉ<span className="text-[#b39158">.</span>
           </Link>
 
           <Link
-            href="/cart"
+            href={isDirectCheckout ? "/shop" : "/cart"}
             className="flex min-h-10 items-center justify-end text-right text-[10px] tracking-wider text-[#777168] hover:text-[#a18454] sm:text-xs"
           >
-            ← BACK TO BAG
+            {isDirectCheckout ? "← BACK TO SHOP" : "← BACK TO BAG"}
           </Link>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-7 sm:px-8 sm:py-10 lg:px-12 lg:py-14">
-        {/* Page heading */}
         <div className="mb-7 sm:mb-10">
           <p className="text-[10px] tracking-[0.3em] text-[#a18454]">
             ALMOST YOURS
@@ -170,7 +222,9 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="mt-3 max-w-lg text-sm leading-6 text-[#777168] sm:mt-4">
-            Complete your details to prepare your order.
+            {isDirectCheckout
+              ? "You're checking out your selected perfume directly."
+              : "Complete your details to prepare your order."}
           </p>
         </div>
 
@@ -178,9 +232,7 @@ export default function CheckoutPage() {
           onSubmit={handlePlaceOrder}
           className="grid min-w-0 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)] lg:gap-10"
         >
-          {/* Customer details */}
           <div className="min-w-0 space-y-6 sm:space-y-8">
-            {/* Contact information */}
             <section className="min-w-0 border border-[#e5ddd3] bg-white p-4 sm:p-6 md:p-8">
               <h2 className="font-serif text-xl sm:text-2xl">
                 01. Contact information
@@ -222,9 +274,7 @@ export default function CheckoutPage() {
                     maxLength={10}
                     value={phone}
                     onChange={(event) =>
-                      setPhone(
-                        event.target.value.replace(/\D/g, "").slice(0, 10)
-                      )
+                      setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))
                     }
                     className={inputClass}
                     placeholder="10-digit mobile number"
@@ -233,7 +283,6 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* Delivery address */}
             <section className="min-w-0 border border-[#e5ddd3] bg-white p-4 sm:p-6 md:p-8">
               <h2 className="font-serif text-xl sm:text-2xl">
                 02. Delivery address
@@ -286,9 +335,7 @@ export default function CheckoutPage() {
                     maxLength={6}
                     value={pincode}
                     onChange={(event) =>
-                      setPincode(
-                        event.target.value.replace(/\D/g, "").slice(0, 6)
-                      )
+                      setPincode(event.target.value.replace(/\D/g, "").slice(0, 6))
                     }
                     className={`${inputClass} sm:max-w-xs`}
                     placeholder="6-digit PIN code"
@@ -297,7 +344,6 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* Payment methods */}
             <section className="min-w-0 border border-[#e5ddd3] bg-white p-4 sm:p-6 md:p-8">
               <h2 className="font-serif text-xl sm:text-2xl">
                 03. Payment method
@@ -313,14 +359,12 @@ export default function CheckoutPage() {
                     {
                       value: "upi",
                       title: "UPI",
-                      description:
-                        "Google Pay, PhonePe, Paytm or another UPI app.",
+                      description: "Google Pay, PhonePe, Paytm or another UPI app.",
                     },
                     {
                       value: "card",
                       title: "Credit / Debit Card",
-                      description:
-                        "Visa, Mastercard and other supported cards.",
+                      description: "Visa, Mastercard and other supported cards.",
                     },
                     {
                       value: "cod",
@@ -365,11 +409,8 @@ export default function CheckoutPage() {
             </section>
           </div>
 
-          {/* Order summary */}
           <aside className="h-fit min-w-0 border border-[#e5ddd3] bg-white p-4 sm:p-6 lg:sticky lg:top-6 lg:p-7">
-            <h2 className="font-serif text-xl sm:text-2xl">
-              Your order
-            </h2>
+            <h2 className="font-serif text-xl sm:text-2xl">Your order</h2>
 
             <p className="mt-2 text-xs text-[#777168]">
               {itemCount} {itemCount === 1 ? "item" : "items"}
@@ -377,10 +418,7 @@ export default function CheckoutPage() {
 
             <div className="mt-5 space-y-4 sm:mt-6 sm:space-y-5">
               {items.map((item) => (
-                <div
-                  key={item.perfume.id}
-                  className="flex min-w-0 gap-3 sm:gap-4"
-                >
+                <div key={item.perfume.id} className="flex min-w-0 gap-3 sm:gap-4">
                   <div className="flex h-20 w-16 shrink-0 items-center justify-center bg-[#eee8df] p-2 sm:h-24 sm:w-20">
                     <img
                       src={item.perfume.image}
@@ -394,16 +432,11 @@ export default function CheckoutPage() {
                     <p className="break-words text-sm font-medium">
                       {item.perfume.name}
                     </p>
-
                     <p className="mt-1 text-xs text-[#777168]">
                       {item.perfume.sizeMl} ml · Qty {item.quantity}
                     </p>
-
                     <p className="mt-2 text-sm">
-                      ₹
-                      {(item.perfume.price * item.quantity).toLocaleString(
-                        "en-IN"
-                      )}
+                      ₹{(item.perfume.price * item.quantity).toLocaleString("en-IN")}
                     </p>
                   </div>
                 </div>
@@ -413,32 +446,25 @@ export default function CheckoutPage() {
             <div className="mt-6 space-y-4 border-t border-[#e5ddd3] pt-5 text-sm sm:mt-7">
               <div className="flex justify-between gap-3">
                 <span className="text-[#777168]">Subtotal</span>
-                <span className="shrink-0">
-                  ₹{subtotal.toLocaleString("en-IN")}
-                </span>
+                <span className="shrink-0">₹{subtotal.toLocaleString("en-IN")}</span>
               </div>
 
               <div className="flex justify-between gap-3">
                 <span className="text-[#777168]">Shipping</span>
                 <span className="shrink-0">
-                  {shipping === 0
-                    ? "Complimentary"
-                    : `₹${shipping.toLocaleString("en-IN")}`}
+                  {shipping === 0 ? "Complimentary" : `₹${shipping.toLocaleString("en-IN")}`}
                 </span>
               </div>
 
               {subtotal > 0 && subtotal < 2999 && (
                 <p className="text-xs leading-5 text-[#8b7968]">
-                  Add ₹{(2999 - subtotal).toLocaleString("en-IN")} more to
-                  unlock complimentary shipping.
+                  Add ₹{(2999 - subtotal).toLocaleString("en-IN")} more to unlock complimentary shipping.
                 </p>
               )}
 
               <div className="flex justify-between gap-3 border-t border-[#e5ddd3] pt-5 text-base font-medium">
                 <span>Total</span>
-                <span className="shrink-0">
-                  ₹{total.toLocaleString("en-IN")}
-                </span>
+                <span className="shrink-0">₹{total.toLocaleString("en-IN")}</span>
               </div>
 
               <p className="text-xs leading-5 text-[#777168]">
@@ -464,10 +490,10 @@ export default function CheckoutPage() {
             </button>
 
             <Link
-              href="/cart"
+              href={isDirectCheckout ? "/shop" : "/cart"}
               className="mt-4 flex min-h-10 items-center justify-center text-center text-xs text-[#777168] underline underline-offset-4 hover:text-[#a18454]"
             >
-              Return to shopping bag
+              {isDirectCheckout ? "Return to shopping" : "Return to shopping bag"}
             </Link>
 
             <p className="mt-4 text-center text-[10px] leading-5 text-[#8b7968] sm:mt-5">

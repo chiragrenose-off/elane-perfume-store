@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -30,6 +31,7 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = "elane-shopping-cart";
+const DIRECT_CHECKOUT_KEY = "elane-direct-checkout";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -125,7 +127,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  // Empty browser storage immediately, before any page redirect.
+  // Empty the shopping bag.
   const clearCart = useCallback(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
