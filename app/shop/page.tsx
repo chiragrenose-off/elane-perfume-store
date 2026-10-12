@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -220,22 +221,25 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Responsive product grid */}
+        {/* Product grid */}
         {filteredPerfumes.length > 0 ? (
-          <div className="grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-3 lg:gap-x-6 xl:grid-cols-4">
+          <div className="grid grid-cols-1 items-stretch gap-x-5 gap-y-9 sm:grid-cols-2 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-3 lg:gap-x-6 xl:grid-cols-4">
             {filteredPerfumes.map((perfume) => {
               const saved = isWishlisted(perfume.id);
 
               return (
-                <article key={perfume.id} className="group min-w-0">
-                  {/* Product image */}
-                  <div className="relative overflow-hidden bg-[#eee8df]">
+                <article
+                  key={perfume.id}
+                  className="group flex min-w-0 flex-col"
+                >
+                  {/* Fixed image area */}
+                  <div className="relative shrink-0 overflow-hidden bg-[#eee8df]">
                     <Link
                       href={`/product/${perfume.slug}`}
                       className="block"
                       aria-label={`View ${perfume.name}`}
                     >
-                      <div className="flex aspect-[5/4] items-center justify-center p-5 sm:aspect-[4/3] sm:p-5 lg:p-6">
+                      <div className="flex aspect-[4/3] items-center justify-center p-5 sm:p-5 lg:p-6">
                         <img
                           src={perfume.image}
                           alt={`${perfume.name} perfume bottle`}
@@ -275,7 +279,7 @@ export default function ShopPage() {
 
                     {perfume.stock === 0 && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
-                        <span className="bg-white px-4 py-2 text-[10px] uppercase tracking-[0.15em] sm:text-xs sm:tracking-[0.2em]">
+                        <span className="bg-white px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-[#211c18] sm:text-xs sm:tracking-[0.2em]">
                           Sold Out
                         </span>
                       </div>
@@ -288,9 +292,9 @@ export default function ShopPage() {
                     )}
                   </div>
 
-                  {/* Product information */}
-                  <div className="pt-4">
-                    <div className="mb-2 flex items-start justify-between gap-3">
+                  {/* Equal-height product information */}
+                  <div className="flex flex-1 flex-col pt-4">
+                    <div className="mb-2 flex min-h-[48px] items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="mb-1 text-[9px] uppercase tracking-[0.12em] text-[#8b7968] sm:text-[10px] sm:tracking-[0.2em]">
                           {perfume.fragranceFamily} · {perfume.gender}
@@ -309,11 +313,11 @@ export default function ShopPage() {
                       </p>
                     </div>
 
-                    <p className="mb-3 line-clamp-2 text-xs leading-5 text-[#74685c] sm:text-sm sm:leading-6">
+                    <p className="mb-3 min-h-[40px] line-clamp-2 text-xs leading-5 text-[#74685c] sm:text-sm sm:leading-6">
                       {perfume.description}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex min-h-7 flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold sm:text-base">
                         ₹{perfume.price.toLocaleString("en-IN")}
                       </span>
@@ -331,7 +335,7 @@ export default function ShopPage() {
                     </div>
 
                     <p
-                      className={`mt-3 text-xs ${
+                      className={`mt-3 min-h-[18px] text-xs ${
                         perfume.stock > 0
                           ? perfume.stock <= 5
                             ? "text-amber-700"
@@ -348,7 +352,7 @@ export default function ShopPage() {
 
                     <Link
                       href={`/product/${perfume.slug}`}
-                      className="mt-4 flex min-h-11 w-full items-center justify-center border border-[#211c18] px-3 py-3 text-center text-[10px] uppercase tracking-[0.12em] transition hover:bg-[#211c18] hover:text-white sm:text-xs sm:tracking-[0.2em]"
+                      className="mt-auto flex min-h-11 w-full items-center justify-center border border-[#211c18] px-3 py-3 text-center text-[10px] uppercase tracking-[0.12em] transition hover:bg-[#211c18] hover:text-white sm:text-xs sm:tracking-[0.2em]"
                     >
                       View Perfume
                     </Link>
