@@ -210,8 +210,8 @@ export const perfumes: Perfume[] = [
   },
   {
     id: 9,
-    name: "Citrus Reverie",
-    slug: "citrus-reverie",
+    name: "Citrus Soleil",
+    slug: "citrus-soleil",
     description: "A lively citrus fragrance with green herbs and clean woods.",
     price: 1999,
     originalPrice: 2399,
@@ -233,8 +233,8 @@ export const perfumes: Perfume[] = [
   },
   {
     id: 10,
-    name: "Rose Éternelle",
-    slug: "rose-eternelle",
+    name: "Rose Whisper",
+    slug: "rose-whisper",
     description: "A romantic rose fragrance softened with powdery iris.",
     price: 3299,
     originalPrice: null,
